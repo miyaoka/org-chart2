@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using UniRx;
+using DG.Tweening;
 
 public class StaffPresenter : MonoBehaviour {
     //view
@@ -27,7 +28,6 @@ public class StaffPresenter : MonoBehaviour {
     void Start(){
         var node = GetComponentInParent<NodePresenter> ();
 //        var relation = GetComponent<Image> ();
-        var relation = avatarImage;
 
 //        diffBg = diffLevelUI.GetComponent<Image> ();
 //        diffText = diffLevelUI.GetComponentInChildren<Text> ();
@@ -57,24 +57,18 @@ public class StaffPresenter : MonoBehaviour {
             .SubscribeToText(currentLevelText)
             .AddTo(this);
 
-        /*
         node.parentDiff
             .Subscribe(diff => {
-                if(diff.HasValue)
+                if(diff.HasValue && diff.Value < 0)
                 {
-                    if (diff.Value < 0) {
-                        relation.color = new Color (1, 0, 0);
-                    } else if (diff.Value < 2) {
-                        relation.color = new Color (1, 1, Mathf.Pow(diff.Value/2f, .8f));
-                    } else {
-                        relation.color = new Color (1, 1, 1);
-                    }
+                    currentLevelText.color = new Color (1, .2f, .2f);
                 }else{
-                    relation.color = new Color (1, 1, 1);
+                    currentLevelText.color = new Color (.2f, .2f, .2f);
                 }
             })
             .AddTo(this);
-            */
+
+        var hueInit = 1f / 6f;
 
         node.staffModel
             .Subscribe (s => {
@@ -116,30 +110,35 @@ public class StaffPresenter : MonoBehaviour {
                     .SubscribeToText(ageText, age => "(" + age.ToString() + ")" )
                     .AddTo(staffResources);
 
+                //世代別色分け
                 s.age
                     .Subscribe (age => {
-                        if(5 <= node.currentLevel.Value )
-                        {
-                            //(1f - (float)age / 40) * .5f + 
-                            relation.color =  Util.HSVToRGB(s.hue.Value, .4f, .8f);
-                        } else{
-                            relation.color = Util.HSVToRGB(0, 0, .75f);
-                        }
+                        avatarImage.color =  Util.HSVToRGB((float)(age / 10) * .2f + hueInit, .7f, .7f);
                     })
                     .AddTo (staffResources);
 
                 /*
-        s.age
-          .Subscribe (age => {
-            if(age < GameController.retirementAge)
-            {
-              ageText.color =  Util.HSVToRGB(.3f, 1, (1f - (float)age / GameController.retirementAge) * .6f );
-            } else{
-              ageText.color = new Color(1,0,0);
-            }
-          })
-          .AddTo (staffResources);
-          */
+                s.stdScore
+                //0-4
+                    .Select(ss => Mathf.Min(8f, Mathf.Max(0, Mathf.Round(ss * 10f) - 4f)))
+                    .Subscribe (ss => {
+                        avatarImage.color =  Util.HSVToRGB( 1f - ss  * .2f, .7f, .7f);
+
+                    })
+                    .AddTo (staffResources);
+                */
+                
+
+                s.age
+                  .Subscribe (age => {
+                    if(age < 40)
+                    {
+                      ageText.color =  Util.HSVToRGB(.3f, 1, (1f - (float)age / 40) * .6f );
+                    } else{
+                      ageText.color = new Color(1,0,0);
+                    }
+                  })
+                  .AddTo (staffResources);
                 /*
                 s.name
                     .SubscribeToText (nameText)
@@ -154,20 +153,46 @@ public class StaffPresenter : MonoBehaviour {
                     .AddTo (staffResources);
                 
 
+                */
                 s.moral
                     .Subscribe(m => {
-                        moralTrans.anchorMin = new Vector2(0, m * .8f + .2f);
+                        moralTrans.anchorMin = new Vector2(0, m * 1f + .0f);
+                    })
+                    .AddTo(staffResources);
+
+                //レベル値に応じてスケール表示
+                s.baseLevel
+                    .Select(b => .4f + Mathf.Max(b-4, 0) * .05f)
+                    .Subscribe(b => {
+                        avatarImage.transform.DOScale(new Vector3(b, b, 1), .3f).SetEase(Ease.OutBack, 20f);
+                        shadowImage.transform.DOScale(new Vector3(b, b, 1), .3f).SetEase(Ease.OutBack, 20f);
+//                        avatarImage.transform.localScale = shadowImage.transform.localScale = new Vector3(b, b, 1);
+                    })
+                    .AddTo(staffResources);
+                /*
+
+                node.hasChild
+                    .Select(b => b ? 1f : .5f)
+                    .Subscribe(sc => {
+                        avatarImage.transform.DOScale(new Vector3(sc, sc, 1), .3f).SetEase(Ease.OutBack, 20f);
+                        shadowImage.transform.DOScale(new Vector3(sc, sc, 1), .3f).SetEase(Ease.OutBack, 20f);
+                        //                        avatarImage.transform.localScale = shadowImage.transform.localScale = new Vector3(b, b, 1);
                     })
                     .AddTo(staffResources);
                 */
 
 
+
+                //今回と直前の値のペア
+                /*
                 s.baseLevel
-                    .Select(b => .4f + Mathf.Max(b-4, 0) * .05f)
-                    .Subscribe(b => {
-                        avatarImage.transform.localScale = shadowImage.transform.localScale = new Vector3(b, b, 1);
-                    })
+                    .Buffer(2, 1)
+                    .Select(l => new Vector2(l[1], l[0]))
+                    .Subscribe(l => Debug.Log(l))
                     .AddTo(staffResources);
+                */
+
+                avatarImage.transform.localScale = shadowImage.transform.localScale = new Vector3(.4f, .4f, 1);
             })
             .AddTo (this);
 

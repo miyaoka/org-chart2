@@ -26,7 +26,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     void Start ()
     {
         Destroy (ignore);
-        var root = createNode(null, orgStaffContainer);
+        var root = createNode(orgStaffContainer);
         root.isRoot.Value = true;
         root.tier.Value = 1;
 
@@ -35,38 +35,44 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             createRecruit ();
         }
     }
-    public NodePresenter createNode(StaffModel staff = null, Transform parent = null){
+    public NodePresenter createNode(Transform parent = null){
         var obj = Instantiate (nodePrefab);
         parent = parent ?? canvas.transform;
         obj.transform.SetParent (parent, false);
         var node = obj.GetComponent<NodePresenter> ();
-        node.staffModel.Value = staff;
         return node;
     }
     void createRecruit(){
+        var n = createNode (recruitsContainer);
         var staff = new StaffModel();
+        n.staffModel.Value = staff;
+
         var ss = (float)NormalDistributionConfidenceCalculator.NormInv ((double)Random.value, .5d, .1d);
         staff.stdScore.Value = ss;
-        var age = Random.Range (0, 30);
+
+        var age = Random.Range (0, 40);
         staff.age.Value = 0;
-        staff.baseLevel.Value = 0;
+        staff.baseLevel.Value = Random.Range(1, 3);
 
         while (0 < age--) {
             addAge (staff);
         }
-        staff.baseLevel.Value = (int)Mathf.Floor((float)staff.baseLevel.Value * .8f);
+        staff.baseLevel.Value = (int)Mathf.Max(1, Mathf.Floor((float)staff.baseLevel.Value * .85f));
+        staff.lastLevel.Value = -1;
+
         staff.name.Value = "";
         staff.hue.Value = Mathf.Floor (Random.value * 3) / 3 + (.2f > Random.value ? 1f/6f : 0);
-        staff.moral.Value = Random.value * .8f + .2f;
-        createNode (staff, recruitsContainer);
+        staff.moral.Value = Random.value * .6f + .3f;
     }
     void addAge(StaffModel sm){
         if (sm.age.Value < 40) {
-            if (Random.value < .4){//sm.stdScore.Value) {
+            if (Random.value < .25f + (sm.stdScore.Value - .5f) * .5f) {
                 sm.baseLevel.Value += 1;
             }
         } else {
-            sm.baseLevel.Value -= 1;
+            if (Random.value < .5) {
+                sm.baseLevel.Value = (int)Mathf.Max(1, sm.baseLevel.Value - 1);
+            }
         }
         sm.age.Value++;
     }
@@ -80,6 +86,9 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
                 continue;
             }
             addAge (s);
+            if (s.age.Value >= 45 && n.tier.Value > 1) {
+                n.isAssigned.Value = false;
+            }
         }
 
         foreach(Transform t in recruitsContainer)
@@ -87,7 +96,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             Destroy (t.gameObject);
         }
 
-        var count = 5;
+        var count = 3;
         while (0 < count--) {
             createRecruit ();
         }
